@@ -1,0 +1,15 @@
+# Secrets
+.env
+
+# Local pipeline output
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Legacy local db (no longer used — pipeline now uses S3/local file storage)
+*.db
