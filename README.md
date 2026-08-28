@@ -64,6 +64,42 @@ python -c "import pandas as pd; pd.read_parquet('data/curated/date=YYYY-MM-DD/re
 
 Definitions live in [`metrics/metrics.sql`](metrics/metrics.sql).
 
+## Sample output
+
+A few rows from an actual curated run (`data/curated/date=2026-08-28/readings.parquet`):
+
+| location_id | city | country | parameter | value | unit | date_utc |
+|---|---|---|---|---|---|---|
+| 1772963 | GBU | US | pm25 | 9.0 | µg/m³ | 2025-08-09 14:00:00+00:00 |
+| 1066093 | SCIOTO | US | pm25 | 13.8 | µg/m³ | 2026-08-28 01:00:00+00:00 |
+| 2146563 | Białystok | PL | pm25 | 6.0 | µg/m³ | 2024-12-09 12:00:00+00:00 |
+| 10819 | Yinnar | AU | pm25 | 8.19 | µg/m³ | 2026-07-29 19:00:00+00:00 |
+| 2954721 | San Francisco-Oakland-Fremont | US | pm25 | 0.0 | µg/m³ | 2026-07-03 07:00:00+00:00 |
+| 2954722 | San Francisco-Oakland-Fremont | US | pm25 | 4.0 | µg/m³ | 2026-08-28 01:00:00+00:00 |
+
+That run pulled 1000 readings, resolved location metadata for 903 of 999 unique stations (the rest hit OpenAQ rate limits or a stale location id), and landed 989 clean rows after filtering and deduping.
+
+## Curated table (Redshift)
+
+```sql
+CREATE TABLE IF NOT EXISTS air_quality_curated (
+    location_id     BIGINT,
+    location_name   VARCHAR(256),
+    city            VARCHAR(128),
+    country         VARCHAR(8),
+    parameter       VARCHAR(32),
+    value           FLOAT,
+    unit            VARCHAR(16),
+    date_utc        TIMESTAMP,
+    load_date       DATE DEFAULT CURRENT_DATE
+)
+DISTSTYLE KEY
+DISTKEY (location_id)
+SORTKEY (date_utc);
+```
+
+`DISTKEY (location_id)` keeps rows for the same station together, and `SORTKEY (date_utc)` is there because basically every query against this table filters by date range. Full DDL in [`db/schema.sql`](db/schema.sql).
+
 ## Author
 
 Deeksha Moole
