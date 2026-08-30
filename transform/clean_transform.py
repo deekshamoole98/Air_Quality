@@ -39,18 +39,32 @@ def _flatten(record: dict) -> dict:
     }
 
 
+_OUTPUT_COLUMNS = [
+    "location_id",
+    "location_name",
+    "city",
+    "country",
+    "parameter",
+    "value",
+    "unit",
+    "date_utc",
+    "is_extreme_outlier",
+]
+
+
 def clean_readings(raw_records: list[dict]) -> pd.DataFrame:
     """Apply data quality rules to a list of raw reading dicts and return a clean DataFrame."""
     if not raw_records:
-        return pd.DataFrame(
-            columns=["location_id", "location_name", "city", "country", "parameter", "value", "unit", "date_utc"]
-        )
+        return pd.DataFrame(columns=_OUTPUT_COLUMNS)
 
     df = pd.DataFrame([_flatten(r) for r in raw_records])
 
     before = len(df)
+    df = df[~df["value"].isin(config.SENTINEL_VALUES)]
     df = df[df["value"] >= config.MIN_VALID_VALUE]
     dropped_invalid = before - len(df)
+
+    df["is_extreme_outlier"] = df["value"] > config.MAX_PLAUSIBLE_VALUE
 
     before = len(df)
     df = df.drop_duplicates(subset=["location_id", "parameter", "date_utc"])
@@ -59,11 +73,14 @@ def clean_readings(raw_records: list[dict]) -> pd.DataFrame:
     df["date_utc"] = pd.to_datetime(df["date_utc"], utc=True, errors="coerce")
     df = df.dropna(subset=["date_utc"])
 
+    flagged_outliers = int(df["is_extreme_outlier"].sum())
     logger.info(
-        "Cleaning summary: %d invalid values dropped, %d duplicates dropped, %d rows remaining",
+        "Cleaning summary: %d invalid/sentinel values dropped, %d duplicates dropped, "
+        "%d rows remaining (%d flagged as extreme outliers, kept)",
         dropped_invalid,
         dropped_dupes,
         len(df),
+        flagged_outliers,
     )
     return df
 

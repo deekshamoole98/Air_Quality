@@ -56,3 +56,22 @@ def test_drops_rows_with_unparseable_date():
     records = [_make_record(date_utc="not-a-date"), _make_record(date_utc="2026-08-27T10:00:00Z")]
     df = clean_readings(records)
     assert len(df) == 1
+
+
+def test_filters_positive_sentinel_values():
+    # 9999 is a real sentinel seen in production data — MIN_VALID_VALUE alone
+    # (>= 0) doesn't catch it since it's a large positive number, not negative.
+    records = [_make_record(value=9999.0), _make_record(value=12.5)]
+    df = clean_readings(records)
+    assert len(df) == 1
+    assert df.iloc[0]["value"] == 12.5
+
+
+def test_flags_extreme_outliers_without_dropping_them():
+    records = [_make_record(location_id=1, value=800.0), _make_record(location_id=2, value=12.5)]
+    df = clean_readings(records)
+    assert len(df) == 2  # both kept
+    outlier_row = df[df["value"] == 800.0].iloc[0]
+    assert outlier_row["is_extreme_outlier"] is True or bool(outlier_row["is_extreme_outlier"]) is True
+    normal_row = df[df["value"] == 12.5].iloc[0]
+    assert bool(normal_row["is_extreme_outlier"]) is False

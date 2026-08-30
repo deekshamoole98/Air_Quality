@@ -3,6 +3,8 @@
 -- once here rather than recomputed ad hoc in each chart.
 
 -- 1. Daily average PM2.5 by city
+-- Excludes rows flagged is_extreme_outlier so a single miscalibrated
+-- sensor spike doesn't blow out a city's daily average.
 CREATE OR REPLACE VIEW vw_daily_avg_pm25_by_city AS
 SELECT
     city,
@@ -13,6 +15,7 @@ SELECT
 FROM air_quality_curated
 WHERE parameter = 'pm25'
   AND city IS NOT NULL
+  AND NOT is_extreme_outlier
 GROUP BY city, country, DATE(date_utc);
 
 
@@ -31,6 +34,7 @@ SELECT
 FROM air_quality_curated
 WHERE parameter = 'pm25'
   AND city IS NOT NULL
+  AND NOT is_extreme_outlier
 GROUP BY city, country, DATE(date_utc);
 
 
@@ -45,6 +49,7 @@ WITH weekly AS (
     FROM air_quality_curated
     WHERE parameter = 'pm25'
       AND city IS NOT NULL
+      AND NOT is_extreme_outlier
     GROUP BY city, country, DATE_TRUNC('week', date_utc)
 )
 SELECT
@@ -60,3 +65,20 @@ SELECT
     ) AS pct_change_wow
 FROM weekly
 ORDER BY city, week_start;
+
+
+-- 4. Flagged extreme outliers, for review — not real WHO breaches, likely
+-- a miscalibrated sensor. Kept out of the metrics above, surfaced here.
+CREATE OR REPLACE VIEW vw_flagged_outliers AS
+SELECT
+    location_id,
+    location_name,
+    city,
+    country,
+    value,
+    unit,
+    date_utc
+FROM air_quality_curated
+WHERE parameter = 'pm25'
+  AND is_extreme_outlier
+ORDER BY date_utc DESC;
