@@ -2,6 +2,23 @@
 
 Pulls PM2.5 readings from the [OpenAQ](https://openaq.org) API, cleans them up, and lands them somewhere a BI tool can actually query. Built around AWS services I already had access to (Lambda, S3, EventBridge, Redshift/Athena), since the goal was something I could actually deploy, not just a local script.
 
+## Status: what's actually verified vs. what's just code
+
+Being upfront about this rather than letting the architecture diagram imply more than what's true:
+
+**Verified against the real API and re-run multiple times:**
+- Ingestion → cleaning → curated Parquet, end to end, locally
+- Sentinel filtering and outlier flagging — both caught real bad values in real ingested data, not just hypothetical test cases
+- The backfill client and the location metadata cache — checked against live OpenAQ responses, including finding and working around two undocumented quirks (see "Backfilling history" below)
+- 22 unit tests, all passing
+
+**Written and reviewed, but not proven against real infrastructure:**
+- The Glue/Lambda AWS path (`glue.start_job_run`, the IAM roles, the deployed Glue job itself) — there's no AWS account wired up in this dev environment, so it's never actually executed. `--local-transform` bypasses it entirely and is the only path that's actually been run.
+- `db/schema.sql` and `metrics/metrics.sql` — reviewed as SQL, never run against a real Redshift or Athena instance.
+- There's no dashboard yet. The metric views are the input to one, not a finished BI deliverable.
+
+If you're using this as a portfolio piece: the pipeline logic is solid and the debugging trail (catching sentinel values, chasing down undocumented API field names and endpoints) is worth walking an interviewer through. Just don't claim it's deployed to AWS or has a live dashboard until it actually does.
+
 ## Why
 
 The question I actually care about: which cities/regions are consistently over WHO's air quality guideline, and is it getting better or worse week to week? Answering that once is a five-minute query. Answering it *every week without redoing the work* is what this pipeline is for.
