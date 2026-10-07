@@ -14,13 +14,9 @@ Being upfront about this rather than letting the architecture diagram imply more
 - 22 unit tests, all passing
 
 **Limits: read these before treating it as production**
-- **It runs on demand.** An hourly EventBridge schedule is documented but not enabled.
+- **It runs on demand.**
 - **The data is thin.** `/latest` returns one reading per station, and many are months old, so the dashboards are early snapshots (roughly one reading per city), not findings. The week-over-week views need weeks of accumulated history before they say anything.
 - **The API key is a Lambda environment variable**, not Secrets Manager.
-- **Redshift is untested.** `db/schema.sql` and `metrics/metrics.sql` were written and reviewed, but never run against Redshift. Athena is what actually ran.
-- **QuickSight isn't left running.** It bills per user with no pause option, so I captured the dashboards as PDFs instead of keeping a subscription going.
-
-If you're using this as a portfolio piece: the pipeline logic is solid, and the debugging trail (silently dropped rows from wrong field names, sentinel values, a Glue runtime that can't import zipped packages) is worth walking an interviewer through. It's catalogued in [`infra/aws_deployment.md`](infra/aws_deployment.md).
 
 ## Why
 
